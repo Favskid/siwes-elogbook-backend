@@ -205,7 +205,7 @@ const listEntries = async (userId, userRole, filters = {}) => {
     whereCondition += ` AND student_id = $${paramCount}`;
     params.push(userId);
     paramCount++;
-  } else if (userRole === 'industry_supervisor' || userRole === 'school_supervisor') {
+  } else if (userRole === 'supervisor' || userRole === 'admin') {
     // Supervisors see entries of students they supervise + their own if they're also students
     // For now, supervisors see all pending/approved entries in their department/company
     // This can be more complex based on business logic
@@ -286,8 +286,8 @@ const updateEntry = async (entryId, studentId, body) => {
     throw createError('You do not have permission to update this entry', 403, 'AUTHORIZATION_ERROR');
   }
 
-  // Business logic: can only edit draft or pending entries
-  if (!['draft', 'pending'].includes(entry.status)) {
+  // Business logic: can only edit draft, pending, or rejected entries
+  if (!['draft', 'pending', 'rejected'].includes(entry.status)) {
     throw createError(`Cannot edit ${entry.status} entries`, 403, 'AUTHORIZATION_ERROR');
   }
 
@@ -382,14 +382,14 @@ const submitEntry = async (entryId, studentId) => {
     throw createError('You do not have permission to submit this entry', 403, 'AUTHORIZATION_ERROR');
   }
 
-  // Business logic: can only submit draft entries
-  if (entry.status !== 'draft') {
-    throw createError(`Cannot submit ${entry.status} entries. Only drafts can be submitted.`, 403, 'AUTHORIZATION_ERROR');
+  // Business logic: can only submit draft or rejected entries
+  if (!['draft', 'rejected'].includes(entry.status)) {
+    throw createError(`Cannot submit ${entry.status} entries. Only drafts or rejected entries can be submitted.`, 403, 'AUTHORIZATION_ERROR');
   }
 
   const updateResult = await query(
     `UPDATE log_entries
-     SET status = 'pending'
+     SET status = 'pending', supervisor_comment = NULL
      WHERE id = $1
      RETURNING *`,
     [entryId]

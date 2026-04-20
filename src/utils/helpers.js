@@ -43,11 +43,10 @@ const isValidPassword = (password) => {
 };
 
 /**
- * Validate matric number format: DEPT/YEAR/NUMBER
+ * Validate matric number - accepts any format
  */
 const isValidMatricNumber = (matric) => {
-  const regex = /^[A-Z]{2,10}\/\d{4}\/\d{3,6}$/;
-  return regex.test(matric);
+  return matric && matric.trim().length > 0;
 };
 
 /**

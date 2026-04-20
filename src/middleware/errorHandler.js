@@ -77,14 +77,19 @@ const errorHandler = (err, req, res, next) => {
   // Default server error
   const statusCode = err.statusCode || 500;
   const message = env.nodeEnv === 'production' ? 'Internal server error' : err.message;
+  const code = err.code || 'INTERNAL_SERVER_ERROR';
 
+  // Return response with helpful field for frontend
   return res.status(statusCode).json({
     success: false,
     error: {
-      code: err.code || 'INTERNAL_SERVER_ERROR',
+      code,
       message,
+      errorType: code, // Helps frontend handle specific error types
       details: {},
     },
+    // Helper hints for development
+    ...(env.nodeEnv !== 'production' && { hint: `Use code "${code}" to handle this error type in frontend` }),
   });
 };
 

@@ -83,7 +83,7 @@ router.get('/dashboard', getDashboardController);
  *         name: role
  *         schema:
  *           type: string
- *           enum: [student, industry_supervisor, school_supervisor, admin]
+ *           enum: [student, supervisor, admin]
  *       - in: query
  *         name: is_active
  *         schema:
@@ -135,7 +135,7 @@ router.get('/users', listUsersController);
  *                 format: password
  *               role:
  *                 type: string
- *                 enum: [student, industry_supervisor, school_supervisor, admin]
+ *                 enum: [student, supervisor, admin]
  *               department:
  *                 type: string
  *               phone:

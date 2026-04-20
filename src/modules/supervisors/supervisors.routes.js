@@ -7,13 +7,14 @@ const {
   rejectEntryController,
   getAssignedStudentsController,
   getStudentProgressController,
+  bulkApproveEntriesController,
 } = require('./supervisors.controller');
 const { authenticate } = require('../../middleware/auth');
 const { authorize } = require('../../middleware/rbac');
 
 // All routes require authentication and supervisor role
 router.use(authenticate);
-router.use(authorize('industry_supervisor', 'school_supervisor', 'admin'));
+router.use(authorize('supervisor', 'admin'));
 
 /**
  * @swagger
@@ -199,6 +200,36 @@ router.put('/entries/:id/approve', approveEntryController);
  *         description: Entry not found
  */
 router.put('/entries/:id/reject', rejectEntryController);
+
+/**
+ * @swagger
+ * /supervisors/entries/bulk-approve:
+ *   put:
+ *     summary: Bulk approve log entries
+ *     description: Approve multiple log entries at once
+ *     tags: [Supervisors]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [entryIds]
+ *             properties:
+ *               entryIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: uuid
+ *               comment:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Entries approved successfully
+ */
+router.put('/entries/bulk-approve', bulkApproveEntriesController);
 
 /**
  * @swagger

@@ -38,7 +38,7 @@ const { authLimiter } = require('../../middleware/rateLimiter');
  *                 example: SecurePass@123
  *               role:
  *                 type: string
- *                 enum: [student, industry_supervisor, school_supervisor, admin]
+ *                 enum: [student, supervisor, admin]
  *                 example: student
  *               matric_number:
  *                 type: string
@@ -81,7 +81,7 @@ const { authLimiter } = require('../../middleware/rateLimiter');
  *       429:
  *         description: Rate limit exceeded
  */
-router.post('/register', authLimiter, registerController);
+router.post('/register', registerController);
 
 /**
  * @swagger
@@ -106,7 +106,7 @@ router.post('/register', authLimiter, registerController);
  *                 example: SecurePass@123
  *               role:
  *                 type: string
- *                 enum: [student, industry_supervisor, school_supervisor, admin]
+ *                 enum: [student, supervisor, admin]
  *                 example: student
  *     responses:
  *       200:
@@ -136,7 +136,7 @@ router.post('/register', authLimiter, registerController);
  *       429:
  *         description: Rate limit exceeded
  */
-router.post('/login', authLimiter, loginController);
+router.post('/login', loginController);
 
 /**
  * @swagger
@@ -179,7 +179,7 @@ router.post('/login', authLimiter, loginController);
  *       401:
  *         description: Invalid refresh token
  */
-router.post('/refresh-token', authLimiter, refreshTokenController);
+router.post('/refresh-token', refreshTokenController);
 
 /**
  * @swagger

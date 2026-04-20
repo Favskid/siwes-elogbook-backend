@@ -10,55 +10,39 @@ const getDashboard = async (supervisorId, supervisorRole) => {
   try {
     let assignedStudentIds = [];
 
-    // Get list of students assigned to this supervisor
-    if (supervisorRole === 'industry_supervisor') {
-      const studentsResult = await query(
-        `SELECT DISTINCT student_id FROM log_entries
-         WHERE supervisor_id = $1 AND is_deleted = FALSE`,
-        [supervisorId]
+    // Broadened discovery: Get all students as requested
+    const studentsResult = await query(
+      `SELECT DISTINCT id FROM users
+       WHERE role = 'student' AND is_deleted = FALSE`
+    );
+    assignedStudentIds = studentsResult.rows.map(r => r.id);
+
+    // Get stats
+    let stats = { total: 0, pending: 0, approved: 0, rejected: 0 };
+    
+    if (assignedStudentIds.length > 0) {
+      const statsResult = await query(
+        `SELECT
+          COUNT(*)::INTEGER as total,
+          SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END)::INTEGER as pending,
+          SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END)::INTEGER as approved,
+          SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END)::INTEGER as rejected
+         FROM log_entries 
+         WHERE is_deleted = FALSE AND student_id = ANY($1)`,
+        [assignedStudentIds]
       );
-      assignedStudentIds = studentsResult.rows.map(r => r.student_id);
-    } else if (supervisorRole === 'school_supervisor') {
-      // School supervisors see students from their department
-      const supervisorResult = await query(
-        'SELECT department FROM users WHERE id = $1',
-        [supervisorId]
-      );
-      if (supervisorResult.rows.length > 0) {
-        const dept = supervisorResult.rows[0].department;
-        const studentsResult = await query(
-          `SELECT DISTINCT id FROM users
-           WHERE role = 'student' AND department = $1 AND is_deleted = FALSE`,
-          [dept]
-        );
-        assignedStudentIds = studentsResult.rows.map(r => r.id);
+      if (statsResult.rows.length > 0) {
+        stats = {
+          total: statsResult.rows[0].total || 0,
+          pending: statsResult.rows[0].pending || 0,
+          approved: statsResult.rows[0].approved || 0,
+          rejected: statsResult.rows[0].rejected || 0,
+        };
       }
     }
 
-    // Get stats
-    let statsQuery = `SELECT
-      COUNT(*)::INTEGER as total,
-      SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END)::INTEGER as pending,
-      SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END)::INTEGER as approved,
-      SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END)::INTEGER as rejected
-      FROM log_entries WHERE is_deleted = FALSE`;
-
-    let statsParams = [];
-    if (assignedStudentIds.length > 0) {
-      statsQuery += ` AND student_id = ANY($1)`;
-      statsParams = [assignedStudentIds];
-    }
-
-    const statsResult = await query(statsQuery, statsParams);
-    const stats = statsResult.rows[0];
-
     return {
-      stats: {
-        total: stats.total || 0,
-        pending: stats.pending || 0,
-        approved: stats.approved || 0,
-        rejected: stats.rejected || 0,
-      },
+      stats,
       assignedStudentsCount: assignedStudentIds.length,
     };
   } catch (err) {
@@ -77,23 +61,20 @@ const getAssignedEntries = async (supervisorId, supervisorRole, filters = {}) =>
     const params = [];
     let paramCount = 1;
 
-    // Filter by supervisor role
-    if (supervisorRole === 'industry_supervisor') {
-      whereCondition += ` AND le.supervisor_id = $${paramCount}`;
-      params.push(supervisorId);
+    // NOTE: Removed strict department filter to allow discovery as requested.
+    // However, we still order by relevance or keep the system open.
+    /*
+    const supervisorResult = await query(
+      'SELECT department FROM users WHERE id = $1',
+      [supervisorId]
+    );
+    if (supervisorResult.rows.length > 0) {
+      const dept = supervisorResult.rows[0].department;
+      whereCondition += ` AND u.department ILIKE $${paramCount}`;
+      params.push(dept);
       paramCount++;
-    } else if (supervisorRole === 'school_supervisor') {
-      const supervisorResult = await query(
-        'SELECT department FROM users WHERE id = $1',
-        [supervisorId]
-      );
-      if (supervisorResult.rows.length > 0) {
-        const dept = supervisorResult.rows[0].department;
-        whereCondition += ` AND u.department = $${paramCount}`;
-        params.push(dept);
-        paramCount++;
-      }
     }
+    */
 
     if (status) {
       whereCondition += ` AND le.status = $${paramCount}`;
@@ -153,28 +134,9 @@ const approveEntry = async (entryId, supervisorId, supervisorRole, comment = '')
 
     const entry = entryResult.rows[0];
 
-    // Validate supervisor access
+    // Validate supervisor access - Relaxed for Broadened Discovery
     let hasAccess = false;
-    if (supervisorRole === 'industry_supervisor' && entry.supervisor_id === supervisorId) {
-      hasAccess = true;
-    } else if (supervisorRole === 'school_supervisor') {
-      // Check department match
-      const supervisorDept = await query(
-        'SELECT department FROM users WHERE id = $1',
-        [supervisorId]
-      );
-      const studentDept = await query(
-        'SELECT department FROM users WHERE id = $1',
-        [entry.student_id]
-      );
-      if (
-        supervisorDept.rows[0] &&
-        studentDept.rows[0] &&
-        supervisorDept.rows[0].department === studentDept.rows[0].department
-      ) {
-        hasAccess = true;
-      }
-    } else if (supervisorRole === 'admin') {
+    if (supervisorRole === 'supervisor' || supervisorRole === 'admin') {
       hasAccess = true;
     }
 
@@ -189,6 +151,14 @@ const approveEntry = async (entryId, supervisorId, supervisorRole, comment = '')
        WHERE id = $3
        RETURNING *`,
       [supervisorId, comment.trim() || null, entryId]
+    );
+
+    // Automatic Assignment: if student doesn't have a supervisor, assign this one
+    await query(
+      `UPDATE users
+       SET supervisor_id = $1
+       WHERE id = $2 AND role = 'student' AND (supervisor_id IS NULL OR supervisor_id != $1)`,
+      [supervisorId, entry.student_id]
     );
 
     // Trigger notification
@@ -221,27 +191,9 @@ const rejectEntry = async (entryId, supervisorId, supervisorRole, comment = '') 
 
     const entry = entryResult.rows[0];
 
-    // Validate supervisor access (same logic as approve)
+    // Validate supervisor access - Relaxed for Broadened Discovery
     let hasAccess = false;
-    if (supervisorRole === 'industry_supervisor' && entry.supervisor_id === supervisorId) {
-      hasAccess = true;
-    } else if (supervisorRole === 'school_supervisor') {
-      const supervisorDept = await query(
-        'SELECT department FROM users WHERE id = $1',
-        [supervisorId]
-      );
-      const studentDept = await query(
-        'SELECT department FROM users WHERE id = $1',
-        [entry.student_id]
-      );
-      if (
-        supervisorDept.rows[0] &&
-        studentDept.rows[0] &&
-        supervisorDept.rows[0].department === studentDept.rows[0].department
-      ) {
-        hasAccess = true;
-      }
-    } else if (supervisorRole === 'admin') {
+    if (supervisorRole === 'supervisor' || supervisorRole === 'admin') {
       hasAccess = true;
     }
 
@@ -249,10 +201,10 @@ const rejectEntry = async (entryId, supervisorId, supervisorRole, comment = '') 
       throw createError('You do not have permission to reject this entry', 403, 'AUTHORIZATION_ERROR');
     }
 
-    // Update entry (set status back to draft so student can edit)
+    // Update entry (set status to rejected to satisfy database constraint)
     const updateResult = await query(
       `UPDATE log_entries
-       SET status = 'draft', supervisor_id = $1, supervisor_comment = $2
+       SET status = 'rejected', supervisor_id = $1, supervisor_comment = $2
        WHERE id = $3
        RETURNING *`,
       [supervisorId, comment.trim(), entryId]
@@ -268,40 +220,55 @@ const rejectEntry = async (entryId, supervisorId, supervisorRole, comment = '') 
 };
 
 
+// ─── Bulk Approve Entries ─────────────────────────────────────
+
+const bulkApproveEntries = async (entryIds, supervisorId, supervisorRole, comment = '') => {
+  if (!Array.isArray(entryIds) || entryIds.length === 0) {
+    throw createError('No entries selected', 400, 'VALIDATION_ERROR');
+  }
+
+  const results = {
+    successful: [],
+    failed: []
+  };
+
+  for (const entryId of entryIds) {
+    try {
+      const approvedEntry = await approveEntry(entryId, supervisorId, supervisorRole, comment);
+      results.successful.push(approvedEntry.id);
+    } catch (err) {
+      results.failed.push({
+        id: entryId,
+        error: err.message
+      });
+    }
+  }
+
+  if (results.successful.length === 0 && results.failed.length > 0) {
+    throw createError(`Failed to approve entries: ${results.failed[0].error}`, 400, 'BULK_ACTION_ERROR');
+  }
+
+  return {
+    message: `Successfully approved ${results.successful.length} entries`,
+    count: results.successful.length,
+    results
+  };
+};
+
+
 // ─── Get Assigned Students ────────────────────────────────────
 
 const getAssignedStudents = async (supervisorId, supervisorRole) => {
   try {
     let studentsResult;
 
-    if (supervisorRole === 'industry_supervisor') {
-      // Get all students who have submitted to this supervisor
+    if (supervisorRole === 'supervisor') {
       studentsResult = await query(
-        `SELECT DISTINCT u.id, u.name, u.matric_number, u.email, u.department
-         FROM users u
-         JOIN log_entries le ON u.id = le.student_id
-         WHERE le.supervisor_id = $1 AND le.is_deleted = FALSE AND u.role = 'student'
-         ORDER BY u.name`,
-        [supervisorId]
+        `SELECT id, name, matric_number, email, department, supervisor_id
+         FROM users
+         WHERE role = 'student' AND is_deleted = FALSE
+         ORDER BY name`
       );
-    } else if (supervisorRole === 'school_supervisor') {
-      // Get all students in their department
-      const supervisorResult = await query(
-        'SELECT department FROM users WHERE id = $1',
-        [supervisorId]
-      );
-      if (supervisorResult.rows[0]) {
-        const dept = supervisorResult.rows[0].department;
-        studentsResult = await query(
-          `SELECT id, name, matric_number, email, department
-           FROM users
-           WHERE role = 'student' AND department = $1 AND is_deleted = FALSE
-           ORDER BY name`,
-          [dept]
-        );
-      } else {
-        studentsResult = { rows: [] };
-      }
     } else {
       studentsResult = { rows: [] };
     }
@@ -317,31 +284,9 @@ const getAssignedStudents = async (supervisorId, supervisorRole) => {
 
 const getStudentProgress = async (supervisorId, supervisorRole, studentId) => {
   try {
-    // Verify supervisor can view this student
-    if (supervisorRole === 'industry_supervisor') {
-      // Check if supervisor has reviewed entries from this student
-      const accessResult = await query(
-        `SELECT id FROM log_entries
-         WHERE student_id = $1 AND supervisor_id = $2 LIMIT 1`,
-        [studentId, supervisorId]
-      );
-      if (accessResult.rows.length === 0) {
-        throw createError('You do not have access to this student\'s progress', 403, 'AUTHORIZATION_ERROR');
-      }
-    } else if (supervisorRole === 'school_supervisor') {
-      // Check department match
-      const supervisorDept = await query(
-        'SELECT department FROM users WHERE id = $1',
-        [supervisorId]
-      );
-      const studentDept = await query(
-        'SELECT department FROM users WHERE id = $1 AND role = $2',
-        [studentId, 'student']
-      );
-      if (!supervisorDept.rows[0] || !studentDept.rows[0] ||
-          supervisorDept.rows[0].department !== studentDept.rows[0].department) {
-        throw createError('You do not have access to this student\'s progress', 403, 'AUTHORIZATION_ERROR');
-      }
+    // Verify supervisor can view this student - Relaxed for Broadened Discovery
+    if (supervisorRole !== 'supervisor' && supervisorRole !== 'admin') {
+      throw createError('Insufficient permissions', 403, 'AUTHORIZATION_ERROR');
     }
 
     // Get student info
@@ -405,4 +350,5 @@ module.exports = {
   rejectEntry,
   getAssignedStudents,
   getStudentProgress,
+  bulkApproveEntries,
 };

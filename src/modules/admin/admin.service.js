@@ -116,7 +116,7 @@ const createUser = async (adminId, body) => {
   if (!email || !isValidEmail(email)) throw createError('Valid email required', 400, 'VALIDATION_ERROR');
   if (!password || password.length < 6) throw createError('Password min 6 chars', 400, 'VALIDATION_ERROR');
 
-  const validRoles = ['student', 'industry_supervisor', 'school_supervisor', 'admin'];
+  const validRoles = ['student', 'supervisor', 'admin'];
   if (!role || !validRoles.includes(role)) throw createError('Invalid role', 400, 'VALIDATION_ERROR');
 
   // Check email exists
@@ -286,7 +286,7 @@ const deleteDepartment = async (adminId, deptId) => {
 const getAllEntries = async (filters = {}) => {
   const { page = 1, limit = 10, status, student_id, week_number } = filters;
 
-  let whereCondition = 'WHERE is_deleted = FALSE';
+  let whereCondition = 'WHERE le.is_deleted = FALSE';
   const params = [];
   let paramCount = 1;
 
@@ -309,7 +309,7 @@ const getAllEntries = async (filters = {}) => {
   }
 
   const countResult = await query(
-    `SELECT COUNT(*)::INTEGER as total FROM log_entries ${whereCondition}`,
+    `SELECT COUNT(*)::INTEGER as total FROM log_entries le ${whereCondition}`,
     params
   );
 

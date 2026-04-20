@@ -2,7 +2,7 @@ const { createError } = require('../utils/helpers');
 
 /**
  * Restrict route to specific roles
- * Usage: authorize('admin') or authorize('student', 'school_supervisor')
+ * Usage: authorize('admin') or authorize('student', 'supervisor')
  */
 const authorize = (...roles) => {
   return (req, res, next) => {

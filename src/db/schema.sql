@@ -11,8 +11,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TYPE user_role AS ENUM (
   'student',
-  'industry_supervisor',
-  'school_supervisor',
+  'supervisor',
   'admin'
 );
 
@@ -68,6 +67,7 @@ CREATE TABLE IF NOT EXISTS users (
   company         VARCHAR(200),                  -- industry supervisors only
   phone           VARCHAR(20),
   avatar          TEXT,                          -- URL or base64
+  supervisor_id   UUID REFERENCES users(id) ON DELETE SET NULL, -- student assignment
   is_active       BOOLEAN NOT NULL DEFAULT TRUE,
   is_deleted      BOOLEAN NOT NULL DEFAULT FALSE,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -82,13 +82,9 @@ CREATE TABLE IF NOT EXISTS users (
     CHECK (
       role != 'student' OR department IS NOT NULL
     ),
-  CONSTRAINT industry_sup_requires_company
+  CONSTRAINT supervisor_requires_department
     CHECK (
-      role != 'industry_supervisor' OR company IS NOT NULL
-    ),
-  CONSTRAINT school_sup_requires_department
-    CHECK (
-      role != 'school_supervisor' OR department IS NOT NULL
+      role != 'supervisor' OR department IS NOT NULL
     )
 );
 
@@ -197,6 +193,7 @@ CREATE TABLE IF NOT EXISTS token_blacklist (
 CREATE INDEX IF NOT EXISTS idx_users_email         ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_role          ON users(role);
 CREATE INDEX IF NOT EXISTS idx_users_matric        ON users(matric_number);
+CREATE INDEX IF NOT EXISTS idx_users_supervisor    ON users(supervisor_id);
 CREATE INDEX IF NOT EXISTS idx_users_is_deleted    ON users(is_deleted);
 
 -- log_entries

@@ -30,7 +30,7 @@ const validateRegisterInput = (body) => {
     errors.push('Password must be at least 8 characters and include uppercase, lowercase, number, and special character');
   }
 
-  const validRoles = ['student', 'industry_supervisor', 'school_supervisor', 'admin'];
+  const validRoles = ['student', 'supervisor', 'admin'];
   if (!role || !validRoles.includes(role)) {
     errors.push(`Role must be one of: ${validRoles.join(', ')}`);
   }
@@ -39,22 +39,16 @@ const validateRegisterInput = (body) => {
     if (!matric_number) {
       errors.push('Matric number is required for students');
     } else if (!isValidMatricNumber(matric_number)) {
-      errors.push('Matric number format must be DEPT/YEAR/NUMBER e.g. CSC/2021/001');
+      errors.push('Matric number is required');
     }
     if (!department || department.trim().length < 2) {
       errors.push('Department is required for students');
     }
   }
 
-  if (role === 'industry_supervisor') {
-    if (!company || company.trim().length < 2) {
-      errors.push('Company name is required for industry supervisors');
-    }
-  }
-
-  if (role === 'school_supervisor') {
+  if (role === 'supervisor') {
     if (!department || department.trim().length < 2) {
-      errors.push('Department is required for school supervisors');
+      errors.push('Department is required for supervisors');
     }
   }
 
@@ -73,7 +67,7 @@ const validateLoginInput = (body) => {
     errors.push('Password is required');
   }
 
-  const validRoles = ['student', 'industry_supervisor', 'school_supervisor', 'admin'];
+  const validRoles = ['student', 'supervisor', 'admin'];
   if (!role || !validRoles.includes(role)) {
     errors.push(`Role must be one of: ${validRoles.join(', ')}`);
   }
@@ -188,10 +182,12 @@ const login = async (body) => {
   const isEmail = isValidEmail(emailOrMatric);
 
   const result = await query(
-    `SELECT * FROM users
-     WHERE (email = $1 OR matric_number = $1)
-     AND role = $2
-     AND is_deleted = FALSE`,
+    `SELECT u.*, s.name as supervisor_name 
+     FROM users u
+     LEFT JOIN users s ON u.supervisor_id = s.id
+     WHERE (u.email = $1 OR u.matric_number = $1)
+     AND u.role = $2
+     AND u.is_deleted = FALSE`,
     [emailOrMatric.toLowerCase().trim(), role]
   );
 
@@ -260,7 +256,10 @@ const refreshToken = async (body) => {
 
   // Get user
   const result = await query(
-    'SELECT * FROM users WHERE id = $1 AND is_deleted = FALSE AND is_active = TRUE',
+    `SELECT u.*, s.name as supervisor_name 
+     FROM users u
+     LEFT JOIN users s ON u.supervisor_id = s.id
+     WHERE u.id = $1 AND u.is_deleted = FALSE AND u.is_active = TRUE`,
     [decoded.sub]
   );
 

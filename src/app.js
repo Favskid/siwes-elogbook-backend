@@ -40,7 +40,8 @@ app.use(sanitizationMiddleware);
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 // ─── Rate Limiting ────────────────────────────────────────────────
-app.use('/api', generalLimiter);
+// Disabled for development - apply selectively if needed
+// app.use('/api', generalLimiter);
 
 // ─── Health Check ─────────────────────────────────────────────────
 app.get('/health', (req, res) => {

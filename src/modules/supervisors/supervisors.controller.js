@@ -59,6 +59,22 @@ const rejectEntryController = async (req, res, next) => {
 };
 
 
+const bulkApproveEntriesController = async (req, res, next) => {
+  try {
+    const { entryIds, comment } = req.body;
+    const result = await supervisorsService.bulkApproveEntries(
+      entryIds,
+      req.user.id,
+      req.user.role,
+      comment
+    );
+    return success(res, result, 'Entries approved successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+
 const getAssignedStudentsController = async (req, res, next) => {
   try {
     const students = await supervisorsService.getAssignedStudents(
@@ -93,4 +109,5 @@ module.exports = {
   rejectEntryController,
   getAssignedStudentsController,
   getStudentProgressController,
+  bulkApproveEntriesController,
 };

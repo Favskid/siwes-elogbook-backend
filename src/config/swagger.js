@@ -76,7 +76,7 @@ const options = {
             },
             role: {
               type: 'string',
-              enum: ['student', 'industry_supervisor', 'school_supervisor', 'admin'],
+              enum: ['student', 'supervisor', 'admin'],
             },
             matric_number: {
               type: 'string',

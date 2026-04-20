@@ -6,10 +6,11 @@ const { sanitizeUser, createError } = require('../../utils/helpers');
 
 const getProfile = async (studentId) => {
   const result = await query(
-    `SELECT id, name, email, role, matric_number, department, phone, avatar, 
-            is_active, created_at, updated_at
-     FROM users
-     WHERE id = $1 AND role = 'student' AND is_deleted = FALSE`,
+    `SELECT u.id, u.name, u.email, u.role, u.matric_number, u.department, u.phone, u.avatar, 
+            u.is_active, u.created_at, u.updated_at, s.name as supervisor_name
+     FROM users u
+     LEFT JOIN users s ON u.supervisor_id = s.id
+     WHERE u.id = $1 AND u.role = 'student' AND u.is_deleted = FALSE`,
     [studentId]
   );
 
