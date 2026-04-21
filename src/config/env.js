@@ -27,5 +27,11 @@ module.exports = {
     uploadDir: process.env.UPLOAD_DIR || 'uploads',
   },
 
-  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+  frontendUrl: (() => {
+    const defaultOrigin = 'http://localhost:5173';
+    const envOrigins = process.env.FRONTEND_URL 
+      ? process.env.FRONTEND_URL.split(',').map(u => u.trim()).filter(Boolean)
+      : [];
+    return [defaultOrigin, ...envOrigins];
+  })(),
 };
