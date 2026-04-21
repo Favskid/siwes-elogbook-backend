@@ -2,13 +2,24 @@
 const { Pool } = require('pg');
 const env = require('./env');
 
-const pool = new Pool({
-  host: env.db.host,
-  port: env.db.port,
-  database: env.db.name,
-  user: env.db.user,
-  password: env.db.password,
-});
+const poolConfig = env.db.url 
+  ? { connectionString: env.db.url }
+  : {
+      host: env.db.host,
+      port: env.db.port,
+      database: env.db.name,
+      user: env.db.user,
+      password: env.db.password,
+    };
+
+// Enable SSL for production environments (Render, Neon, etc.)
+if (env.nodeEnv === 'production') {
+  poolConfig.ssl = {
+    rejectUnauthorized: false
+  };
+}
+
+const pool = new Pool(poolConfig);
 
 pool.on('connect', () => {
   console.log('✅ Connected to PostgreSQL database');
