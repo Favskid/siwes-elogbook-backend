@@ -84,11 +84,15 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- ─── Add FK: departments.supervisor_id -> users ───────────────
 
-ALTER TABLE departments
-  ADD CONSTRAINT fk_department_supervisor
-  FOREIGN KEY (supervisor_id)
-  REFERENCES users(id)
-  ON DELETE SET NULL;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_department_supervisor') THEN
+    ALTER TABLE departments
+      ADD CONSTRAINT fk_department_supervisor
+      FOREIGN KEY (supervisor_id)
+      REFERENCES users(id)
+      ON DELETE SET NULL;
+  END IF;
+END $$;
 
 
 -- ─── TABLE: log_entries ───────────────────────────────────────
@@ -229,14 +233,17 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_users_updated_at ON users;
 CREATE TRIGGER trigger_users_updated_at
   BEFORE UPDATE ON users
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_log_entries_updated_at ON log_entries;
 CREATE TRIGGER trigger_log_entries_updated_at
   BEFORE UPDATE ON log_entries
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS trigger_departments_updated_at ON departments;
 CREATE TRIGGER trigger_departments_updated_at
   BEFORE UPDATE ON departments
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
