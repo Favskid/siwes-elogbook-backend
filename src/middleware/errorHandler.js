@@ -76,7 +76,7 @@ const errorHandler = (err, req, res, next) => {
 
   // Default server error
   const statusCode = err.statusCode || 500;
-  const message = env.nodeEnv === 'production' ? 'Internal server error' : err.message;
+  const message = (env.nodeEnv === 'production' && statusCode >= 500) ? 'Internal server error' : err.message;
   const code = err.code || 'INTERNAL_SERVER_ERROR';
 
   // Return response with helpful field for frontend
