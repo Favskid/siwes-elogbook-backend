@@ -9,36 +9,29 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ─── ENUMS ───────────────────────────────────────────────────
 
-CREATE TYPE user_role AS ENUM (
-  'student',
-  'supervisor',
-  'admin'
-);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
+    CREATE TYPE user_role AS ENUM ('student', 'supervisor', 'admin');
+  END IF;
+END $$;
 
-CREATE TYPE entry_status AS ENUM (
-  'draft',
-  'pending',
-  'approved',
-  'rejected'
-);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'entry_status') THEN
+    CREATE TYPE entry_status AS ENUM ('draft', 'pending', 'approved', 'rejected');
+  END IF;
+END $$;
 
-CREATE TYPE notification_type AS ENUM (
-  'approval',
-  'rejection',
-  'feedback',
-  'submission',
-  'info'
-);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'notification_type') THEN
+    CREATE TYPE notification_type AS ENUM ('approval', 'rejection', 'feedback', 'submission', 'info');
+  END IF;
+END $$;
 
-CREATE TYPE audit_action AS ENUM (
-  'CREATE',
-  'UPDATE',
-  'DELETE',
-  'LOGIN',
-  'LOGOUT',
-  'EXPORT',
-  'PURGE'
-);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'audit_action') THEN
+    CREATE TYPE audit_action AS ENUM ('CREATE', 'UPDATE', 'DELETE', 'LOGIN', 'LOGOUT', 'EXPORT', 'PURGE');
+  END IF;
+END $$;
 
 
 -- ─── TABLE: departments ───────────────────────────────────────

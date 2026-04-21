@@ -19,12 +19,17 @@ const poolConfig = process.env.DATABASE_URL
 const pool = new Pool(poolConfig);
 
 const runFile = async (filePath) => {
+  const fileName = path.basename(filePath);
+  console.log(`⏳ Running SQL script: ${fileName}...`);
   const sql = fs.readFileSync(filePath, 'utf8');
   try {
     await pool.query(sql);
-    console.log(`✅ Successfully ran: ${path.basename(filePath)}`);
+    console.log(`✅ Successfully ran: ${fileName}`);
   } catch (err) {
-    console.error(`❌ Error running ${path.basename(filePath)}:`, err.message);
+    console.error(`❌ Error running ${fileName}:`);
+    console.error(`   Message: ${err.message}`);
+    if (err.detail) console.error(`   Detail: ${err.detail}`);
+    if (err.where) console.error(`   Where: ${err.where}`);
     throw err;
   }
 };
