@@ -15,7 +15,11 @@ const getDashboardController = async (req, res, next) => {
 const listUsersController = async (req, res, next) => {
   try {
     const { page, limit, role, is_active } = req.query;
-    const result = await adminService.listUsers({ page, limit, role, is_active: is_active === 'true' });
+    const filters = { page, limit, role };
+    if (is_active !== undefined) {
+      filters.is_active = is_active === 'true';
+    }
+    const result = await adminService.listUsers(filters);
     return success(res, result, 'Users retrieved successfully');
   } catch (err) {
     next(err);

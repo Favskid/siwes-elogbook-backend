@@ -24,9 +24,14 @@ const logAuditAction = async (adminId, action, targetTable, targetId, descriptio
 const getDashboard = async () => {
   try {
     const [usersResult, entriesResult, notificationsResult, filesResult] = await Promise.all([
-      query('SELECT COUNT(*)::INTEGER as total, SUM(CASE WHEN role = $1 THEN 1 ELSE 0 END)::INTEGER as students FROM users WHERE is_deleted = FALSE', ['student']),
-      query('SELECT COUNT(*)::INTEGER as total, SUM(CASE WHEN status = $1 THEN 1 ELSE 0 END)::INTEGER as pending FROM log_entries WHERE is_deleted = FALSE', ['pending']),
-      query('SELECT COUNT(*)::INTEGER as unread FROM notifications WHERE is_read = FALSE'),
+      query('SELECT COUNT(*)::INTEGER as total, SUM(CASE WHEN role = $1 THEN 1 ELSE 0 END)::INTEGER as students FROM users', ['student']),
+      query(`SELECT 
+              COUNT(*)::INTEGER as total, 
+              SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END)::INTEGER as pending,
+              SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END)::INTEGER as approved,
+              SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END)::INTEGER as rejected
+             FROM log_entries WHERE is_deleted = FALSE`),
+      query('SELECT COUNT(*)::INTEGER as total FROM notifications WHERE is_read = FALSE'),
       query('SELECT COUNT(*)::INTEGER as total, SUM(file_size)::BIGINT as totalSize FROM files'),
     ]);
 
@@ -43,9 +48,11 @@ const getDashboard = async () => {
       logEntries: {
         total: entries.total || 0,
         pending: entries.pending || 0,
+        approved: entries.approved || 0,
+        rejected: entries.rejected || 0,
       },
       notifications: {
-        unread: notifications.unread || 0,
+        total: notifications.total || 0,
       },
       files: {
         total: files.total || 0,
@@ -63,7 +70,7 @@ const getDashboard = async () => {
 const listUsers = async (filters = {}) => {
   const { page = 1, limit = 10, role, is_active } = filters;
 
-  let whereCondition = 'WHERE is_deleted = FALSE';
+  let whereCondition = 'WHERE 1=1'; // Allow seeing all users including deleted ones for Admin overview
   const params = [];
   let paramCount = 1;
 
@@ -88,7 +95,7 @@ const listUsers = async (filters = {}) => {
   const offset = getOffset(page, limit);
 
   const usersResult = await query(
-    `SELECT id, name, email, role, matric_number, department, company, phone, is_active, created_at
+    `SELECT id, name, email, role, matric_number, department, company, phone, is_active, is_deleted, created_at
      FROM users
      ${whereCondition}
      ORDER BY created_at DESC

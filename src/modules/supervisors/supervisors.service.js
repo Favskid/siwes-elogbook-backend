@@ -10,10 +10,11 @@ const getDashboard = async (supervisorId, supervisorRole) => {
   try {
     let assignedStudentIds = [];
 
-    // Broadened discovery: Get all students as requested
+    // Personalized discovery: Get students assigned to this supervisor
     const studentsResult = await query(
       `SELECT DISTINCT id FROM users
-       WHERE role = 'student' AND is_deleted = FALSE`
+       WHERE role = 'student' AND supervisor_id = $1 AND is_deleted = FALSE`,
+      [supervisorId]
     );
     assignedStudentIds = studentsResult.rows.map(r => r.id);
 
@@ -57,9 +58,9 @@ const getAssignedEntries = async (supervisorId, supervisorRole, filters = {}) =>
   const { page = 1, limit = 10, status } = filters;
 
   try {
-    let whereCondition = 'WHERE le.is_deleted = FALSE';
-    const params = [];
-    let paramCount = 1;
+    let whereCondition = 'WHERE le.is_deleted = FALSE AND (u.supervisor_id IS NULL OR u.supervisor_id = $1)';
+    const params = [supervisorId];
+    let paramCount = 2;
 
     // NOTE: Removed strict department filter to allow discovery as requested.
     // However, we still order by relevance or keep the system open.
@@ -266,8 +267,10 @@ const getAssignedStudents = async (supervisorId, supervisorRole) => {
       studentsResult = await query(
         `SELECT id, name, matric_number, email, department, supervisor_id
          FROM users
-         WHERE role = 'student' AND is_deleted = FALSE
-         ORDER BY name`
+         WHERE role = 'student' AND is_deleted = FALSE 
+           AND (supervisor_id IS NULL OR supervisor_id = $1)
+         ORDER BY name`,
+        [supervisorId]
       );
     } else {
       studentsResult = { rows: [] };
