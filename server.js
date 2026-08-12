@@ -28,7 +28,9 @@ const startServer = async () => {
       console.log(`❤️  Health check: http://localhost:${env.port}/health`);
     });
   } catch (err) {
-    console.error('❌ Failed to start server:', err.message);
+    console.error('❌ Failed to start server:', err.message || err);
+    console.error('   DATABASE_URL set:', !!process.env.DATABASE_URL);
+    console.error('   NODE_ENV:', process.env.NODE_ENV);
     process.exit(1);
   }
 };
