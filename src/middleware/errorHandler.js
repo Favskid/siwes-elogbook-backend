@@ -4,6 +4,18 @@ const env = require('../config/env');
 const errorHandler = (err, req, res, next) => {
   console.error('❌ Error:', err);
 
+  // CORS error handling
+  if (err.message === 'Not allowed by CORS') {
+    return res.status(403).json({
+      success: false,
+      error: {
+        code: 'FORBIDDEN',
+        message: 'Origin not allowed by CORS policy',
+        details: {},
+      },
+    });
+  }
+
   // Duplicate key (PostgreSQL error code 23505)
   if (err.code === '23505') {
     return res.status(409).json({

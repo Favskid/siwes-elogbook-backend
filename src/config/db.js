@@ -12,11 +12,14 @@ const poolConfig = env.db.url
       password: env.db.password,
     };
 
-// Enable SSL for production environments (Render, Neon, etc.)
+// Enable SSL for production environments (Render, Neon, etc.) except internal Railway networks
 if (env.nodeEnv === 'production') {
-  poolConfig.ssl = {
-    rejectUnauthorized: false
-  };
+  const isInternalRailway = env.db.url && (env.db.url.includes('railway.internal') || env.db.url.includes('sslmode=disable'));
+  if (!isInternalRailway && process.env.DB_SSL !== 'false') {
+    poolConfig.ssl = {
+      rejectUnauthorized: false
+    };
+  }
 }
 
 const pool = new Pool(poolConfig);
