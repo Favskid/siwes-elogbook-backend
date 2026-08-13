@@ -18,9 +18,19 @@ module.exports = {
 
   jwt: {
     secret: process.env.JWT_SECRET,
-    expiresIn: parseInt(process.env.JWT_EXPIRES_IN) || 86400,
+    expiresIn: (() => {
+      const val = process.env.JWT_EXPIRES_IN;
+      if (!val) return '24h';
+      if (/^\d+$/.test(val.trim())) return parseInt(val.trim(), 10);
+      return val.trim();
+    })(),
     refreshSecret: process.env.JWT_REFRESH_SECRET,
-    refreshExpiresIn: parseInt(process.env.JWT_REFRESH_EXPIRES_IN) || 604800,
+    refreshExpiresIn: (() => {
+      const val = process.env.JWT_REFRESH_EXPIRES_IN;
+      if (!val) return '7d';
+      if (/^\d+$/.test(val.trim())) return parseInt(val.trim(), 10);
+      return val.trim();
+    })(),
   },
 
   upload: {

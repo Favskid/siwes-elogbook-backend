@@ -2,6 +2,10 @@
 const env = require('../config/env');
 
 const errorHandler = (err, req, res, next) => {
+  if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
+    err.statusCode = 401;
+  }
+
   const statusCode = err.statusCode || 500;
 
   // Log full stack traces for 500 internal errors; keep 4xx operational logs clean
