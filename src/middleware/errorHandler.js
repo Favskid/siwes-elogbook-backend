@@ -2,7 +2,14 @@
 const env = require('../config/env');
 
 const errorHandler = (err, req, res, next) => {
-  console.error('❌ Error:', err);
+  const statusCode = err.statusCode || 500;
+
+  // Log full stack traces for 500 internal errors; keep 4xx operational logs clean
+  if (statusCode >= 500) {
+    console.error('❌ Server Error:', err);
+  } else {
+    console.warn(`⚠️ Operational Error (${statusCode}): ${err.message}`);
+  }
 
   // CORS error handling
   if (err.message === 'Not allowed by CORS') {
