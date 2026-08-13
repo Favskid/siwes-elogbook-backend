@@ -14,61 +14,61 @@ const { sanitizationMiddleware } = require('./middleware/sanitization');
 
 const app = express();
 
-// ─── Security Middleware ───────────────────────────────────────────
+// Security Middleware
 app.use(helmet());
 
-app.use(cors({
+const corsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl)
+    // Allow requests with no origin (mobile apps, curl, server-to-server)
     if (!origin) return callback(null, true);
-    
+
     if (env.frontendUrl.includes(origin)) {
       callback(null, true);
     } else {
       console.warn(`CORS blocked for origin: ${origin}`);
+      console.warn(`Allowed origins: ${JSON.stringify(env.frontendUrl)}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+};
 
-// ─── Logging ──────────────────────────────────────────────────────
+app.use(cors(corsOptions));
+
+// Logging
 if (env.nodeEnv === 'development') {
   app.use(morgan('dev'));
+} else {
+  app.use(morgan('combined'));
 }
 
-// ─── Body Parsers ─────────────────────────────────────────────────
+// Body Parsers
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// ─── Input Sanitization ───────────────────────────────────────────
+// Input Sanitization
 app.use(sanitizationMiddleware);
 
-// ─── Static Files (uploaded files) ────────────────────────────────
+// Static Files
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
-// ─── Rate Limiting ────────────────────────────────────────────────
-// Disabled for development - apply selectively if needed
-// app.use('/api', generalLimiter);
-
-// ─── Health Check ─────────────────────────────────────────────────
+// Health Check
 app.get('/health', (req, res) => {
   res.status(200).json({
     success: true,
     message: 'SIWES E-Logbook API is running',
     environment: env.nodeEnv,
+    allowedOrigins: env.frontendUrl,
     timestamp: new Date().toISOString(),
   });
 });
 
-// ─── Swagger Documentation ────────────────────────────────────────
+// Swagger Documentation
 app.use('/api-docs', swaggerUi.serve);
 app.get('/api-docs', swaggerUi.setup(swaggerSpec, {
-  swaggerOptions: {
-    url: '/swagger.json',
-  },
+  swaggerOptions: { url: '/swagger.json' },
 }));
 
 app.get('/swagger.json', (req, res) => {
@@ -76,7 +76,7 @@ app.get('/swagger.json', (req, res) => {
   res.send(swaggerSpec);
 });
 
-// ─── API Routes ───────────────────────────────────────────────────
+// API Routes
 app.use('/api/auth', require('./modules/auth/auth.routes'));
 app.use('/api/students', require('./modules/students/students.routes'));
 app.use('/api/log-entries', require('./modules/log-entries/logEntries.routes'));
@@ -85,7 +85,7 @@ app.use('/api/admin', require('./modules/admin/admin.routes'));
 app.use('/api/notifications', require('./modules/notifications/notifications.routes'));
 app.use('/api/files', require('./modules/files/files.routes'));
 
-// ─── 404 Handler ──────────────────────────────────────────────────
+// 404 Handler
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -97,7 +97,7 @@ app.use((req, res) => {
   });
 });
 
-// ─── Global Error Handler ─────────────────────────────────────────
+// Global Error Handler
 app.use(errorHandler);
 
 module.exports = app;
