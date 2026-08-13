@@ -1,5 +1,7 @@
 // Environment configuration
-require('dotenv').config();
+// Railway injects vars directly into process.env before the app starts.
+// We call dotenv with override:false so Railway vars are never overwritten.
+require('dotenv').config({ override: false });
 
 module.exports = {
   port: process.env.PORT || 3000,
