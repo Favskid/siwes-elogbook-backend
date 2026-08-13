@@ -30,10 +30,16 @@ module.exports = {
   },
 
   frontendUrl: (() => {
-    const defaultOrigin = 'http://localhost:5173';
+    const defaultOrigins = [
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'http://localhost:4173',
+      'https://siwes-elogbook.vercel.app',
+    ];
     const envOrigins = process.env.FRONTEND_URL 
-      ? process.env.FRONTEND_URL.split(',').map(u => u.trim()).filter(Boolean)
+      ? process.env.FRONTEND_URL.split(',').map(u => u.trim().replace(/\/$/, '')).filter(Boolean)
       : [];
-    return [defaultOrigin, ...envOrigins];
+    const all = [...defaultOrigins.map(u => u.replace(/\/$/, '')), ...envOrigins];
+    return Array.from(new Set(all));
   })(),
 };
